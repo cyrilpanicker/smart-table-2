@@ -1,0 +1,14 @@
+{
+  "name": "smart-table-2",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "node smart-table-server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.17.1",
+    "express": "^4.15.2"
+  }
+}
