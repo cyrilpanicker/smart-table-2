@@ -52,11 +52,29 @@
     }
 
     function SmartTableModel(){
+
         return function(config){
             this.config = config;
-            this.params = {
-                param1:'test-param1'
-            }
+            this.page = 1;
+            this.scope = null;
+            this.data = null;
+            this.totalItems = 0;
+            this.getPageCount = function(){
+                if(this.config.rowsPerPage && this.totalItems){
+                    return Math.ceil(this.totalItems/this.config.rowsPerPage);
+                }else{
+                    return 0;
+                }
+            };
+            this.getCurrentBlock = function(){
+                return Math.ceil(this.page/this.config.pagesPerBlock);
+            };
+            this.generatePagesArray = function(currentPage,totalItems,rowsPerPage){
+                
+            };
+            this.getCachedData = null;
+            this.getServerData = null;
+
         };
     }
 

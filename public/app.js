@@ -5,5 +5,8 @@ angular.module('app',['smartTable'])
 		url:'metadata.json'
 	}).then(function(response){
 		$scope.dataTable = new SmartTableModel(response.data);
+		console.log($scope.dataTable);
+		$scope.dataTable.page = 5;
+		console.log($scope.dataTable.getCurrentBlock());
 	});
 }]);
