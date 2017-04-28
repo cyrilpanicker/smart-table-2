@@ -1,6 +1,6 @@
 {
     "apiUrl":"users",
-    "isPaginated":true,
+    "isPaginated":false,
     "pagesPerBlock": 4,
     "rowsPerPage": 25,
     "isRowSelectable":true,
