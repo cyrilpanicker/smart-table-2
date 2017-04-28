@@ -1,4 +1,4 @@
-<div class="smart-table" ng-init="model=smartTableModel">
+<div class="smart-table">
     <div class="top-pagination" ng-if="model.config.isPaginated"
         ng-include="'dist/smart-table-pagination.html'"
     >
@@ -23,7 +23,6 @@
             </tr>
         </thead>-->
         <tbody>
-            Test
             <!--<tr class="no-records" ng-show="!model.loading && !$data.length">
                 <td colspan="{{params.$params.columns.length + params.$params.isRowSelectable}}"
                     ng-bind="model.noRecordsMessage"

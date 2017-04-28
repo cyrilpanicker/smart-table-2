@@ -104,7 +104,7 @@
     }
 
     function getTemplate(columns,isRowSelectable){
-        var rows = $('<tr class="data-rows" ng-repeat="datum in model.$data" ng-show="!model.loading && model.$data.length"></tr>');
+        var rows = $('<tr class="data-rows" ng-repeat="datum in smartTableModel.$data" ng-show="!smartTableModel.loading && smartTableModel.$data.length"></tr>');
         // if (isRowSelectable) {
         //     var rowSelectorCell = $('<td class="row-select"></td>')
         //     rowSelectorCell.append('<input type="checkbox" ng-model="datum._isSelected" ng-click="model.updateSelectedRows()" />');
