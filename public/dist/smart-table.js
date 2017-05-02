@@ -4,7 +4,7 @@
 
     angular.module('smartTable',['ngSanitize'])
         .directive('smartTable',['$compile','$parse',smartTable])
-        .factory('SmartTableModel',['$http',SmartTableModel])
+        .factory('SmartTableModel',['$http','$timeout',SmartTableModel])
         .filter('smartTableTextTruncate',[smartTableTextTruncate])
         .directive('smartTableTooltipWrapper',[smartTableTooltipWrapper])
 
@@ -41,11 +41,20 @@
             model.getRequestParams = $parse(attributes.requestParams);
             model.config.noRecordsMessage = model.config.noRecordsMessage || 'No records to show.';
             model.config.loadingMessage = model.config.loadingMessage || 'Loading data';
+            model.addMarkerImages = function(){
+                var markerImages = angular.element(document.getElementsByClassName('marker-image'));
+                for(var i=0;i<markerImages.length;i++){
+                    var markerImageElement = angular.element(markerImages[i]);
+                    var value = markerImageElement.attr('data-value');
+                    var mapping = JSON.parse(markerImageElement.attr('data-mapping'));
+                    markerImageElement.attr('src',model.getMarkerImageUrl(value,mapping));
+                }
+            };
             model.reload(true);
         });
     }
 
-    function SmartTableModel($http){
+    function SmartTableModel($http,$timeout){
         return function(config){
             var model = this;
             model.loading = true;
@@ -105,10 +114,11 @@
                     model.totalItems = data.totalItems;
                     model.resultSet = data.resultSet;
                     if(model.config.isPaginated){
-                        model.$data = self.filterDataByPageBlock(data);
+                        model.$data = model.filterDataByPageBlock(data);
                     }else{
                         model.$data = model.resultSet;
                     }
+                    $timeout(model.addMarkerImages);
                     model.loading = false;
                 },function(error){
                     console.log('SMART-TABLE-ERROR : \n'+JSON.stringify(error));
@@ -161,7 +171,8 @@
                     var markerGroupDatum = markers[j];
                     var markerGroup = angular.element('<div class="marker-group"></div>');
                     var image = angular.element('<img class="marker-image"></img>');
-                    image.attr('ng-src', "{{smartTableModel.getMarkerImageUrl(datum['" + markerGroupDatum.field + "']," + JSON.stringify(markerGroupDatum.mappings) + ")}}");
+                    image.attr('data-value',"{{::datum['"+markerGroupDatum.field+"']}}");
+                    image.attr('data-mapping',JSON.stringify(markerGroupDatum.mappings));
                     markerGroup.append(image);
                     markerContainer.append(markerGroup);
                 }

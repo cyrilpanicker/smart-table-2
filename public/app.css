@@ -1,3 +1,8 @@
+body{
+    font-size: 14px;
+    font-family: pt_sansregular, sans-serif;
+}
+
 .container{
     margin: 5% auto;
     width: 95%;
