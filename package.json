@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "compile:sass": "node-sass --output-style expanded public/dist/smart-table.scss public/dist/smart-table.css",
     "start": "node smart-table-server.js"
   },
   "author": "",
@@ -10,5 +11,8 @@
   "dependencies": {
     "body-parser": "^1.17.1",
     "express": "^4.15.2"
+  },
+  "devDependencies": {
+    "node-sass": "^4.5.2"
   }
 }

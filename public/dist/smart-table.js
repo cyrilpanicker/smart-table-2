@@ -2,30 +2,45 @@
 
     'use strict'
 
-    angular.module('smartTable',[])
-        .directive('smartTable',['$compile',smartTable])
+    angular.module('smartTable',['ngSanitize'])
+        .directive('smartTable',['$compile','$parse',smartTable])
         .factory('SmartTableModel',['$http',SmartTableModel])
+        .filter('smartTableTextTruncate',[smartTableTextTruncate])
+        .directive('smartTableTooltipWrapper',[smartTableTooltipWrapper])
 
-    function smartTable($compile){
+    function smartTable($compile,$parse){
         return {
             replace:true,
             scope:true,
             templateUrl:'dist/smart-table.html',
-            controller:['$scope',smartTableController],
-            link:smartTableLink.bind(null,$compile)
+            link:smartTableLink.bind(null,$compile,$parse)
         };
     }
 
-    function smartTableController($scope){
-    }
-
-    function smartTableLink($compile, scope, element, attributes){
+    function smartTableLink($compile, $parse, scope, element, attributes){
         var deregisterWatcher = scope.$watch(attributes.smartTable,function(_model){
             if(!_model)return;
             deregisterWatcher();
             var model = scope.smartTableModel = _model;
             var compiledTemplate = $compile(model.template)(scope);
             element.find('tbody').prepend(compiledTemplate);
+            model.scope = scope;
+            model.currentSortColumn = null;
+            model.sortParams = { sortColumn: null, sortOrder: null };
+            model.defaultSortParams = { sortColumn: null, sortOrder: null };
+            if(model.config.defaultSortColumn){
+                model.defaultSortParams.sortColumn = model.config.defaultSortColumn;
+                model.currentSortColumn = model.config.defaultSortColumn;
+            }
+            if(model.config.defaultSortOrder){
+                model.defaultSortParams.sortOrder = model.config.defaultSortOrder;
+            }
+            model.sortParams = angular.copy(model.defaultSortParams);
+            model.selectedRows = [];
+            model.apiUrlBasepath = scope.$eval(attributes.apiUrlBasepath);
+            model.getRequestParams = $parse(attributes.requestParams);
+            model.config.noRecordsMessage = model.config.noRecordsMessage || 'No records to show.';
+            model.config.loadingMessage = model.config.loadingMessage || 'Loading data';
             model.reload(true);
         });
     }
@@ -37,7 +52,7 @@
             model.scope = null;
             model.config = config;
             model.page = 1;
-            model.$data = null;//filteredData
+            model.$data = null;
             model.totalItems = 0;
             model.resultSet = [];
             model.template = getTemplate(config.columns,config.isRowSelectable);
@@ -100,23 +115,43 @@
                     model.loading = false;
                 });
             };
+            model.resetSorting = function(){
+                model.sortParams = angular.copy(model.defaultSortParams);
+            };
+            model.resetAndReload = function(retainSort){
+                if(!retainSort){
+                    model.resetSorting();
+                }
+                model.reload(true);
+            };
+            model.sortBy = sortBy.bind(null,model);
+            model.getMarkerImageUrl = function (value, mappings) {
+                var filteredMappings = mappings.filter(function (mapping) {
+                    return mapping.mappedValue == value;
+                });
+                if (!filteredMappings.length) {
+                    return null;
+                } else {
+                    return filteredMappings[0].imageUrl;
+                }
+            };
         };
     }
 
     function getTemplate(columns,isRowSelectable){
-        var rows = $('<tr class="data-rows" ng-repeat="datum in smartTableModel.$data" ng-show="!smartTableModel.loading && smartTableModel.$data.length"></tr>');
-        // if (isRowSelectable) {
-        //     var rowSelectorCell = $('<td class="row-select"></td>')
-        //     rowSelectorCell.append('<input type="checkbox" ng-model="datum._isSelected" ng-click="model.updateSelectedRows()" />');
-        //     rows.append(rowSelectorCell);
-        // }
+        var rows = angular.element('<tr class="data-rows" ng-repeat="datum in smartTableModel.$data" ng-show="!smartTableModel.loading && smartTableModel.$data.length"></tr>');
+        if (isRowSelectable) {
+            var rowSelectorCell = angular.element('<td class="row-select"></td>')
+            rowSelectorCell.append('<input type="checkbox" ng-model="datum._isSelected" ng-click="model.updateSelectedRows()" />');
+            rows.append(rowSelectorCell);
+        }
         for (var i = 0; i < columns.length; i++) {
-            var cell = $('<td></td>')
+            var cell = angular.element('<td></td>')
             cell.attr('style', 'text-align:' + (columns[i].alignment ? columns[i].alignment : 'left'))
-            var fieldContainer = $('<div class="field-container"></div>');
-            var markerContainer = $('<div class="marker-container"></div>');
-            var infoColumnsContainer = $('<div class="info-columns-container"></div>');
-            var actionsContainer = $('<div class="actions-container"></div>');
+            var fieldContainer = angular.element('<div class="field-container"></div>');
+            var markerContainer = angular.element('<div class="marker-container"></div>');
+            var infoColumnsContainer = angular.element('<div class="info-columns-container"></div>');
+            var actionsContainer = angular.element('<div class="actions-container"></div>');
             var field = columns[i].field;
             var markers = columns[i].markers;
             var infoColumns = columns[i].infoColumns;
@@ -124,39 +159,41 @@
             if (markers && markers.length) {
                 for (var j = 0; j < markers.length; j++) {
                     var markerGroupDatum = markers[j];
-                    var markerGroup = $('<div class="marker-group"></div>');
-                    var image = $('<img class="marker-image"></img>');
-                    image.attr('ng-src', "{{" + markerGroupDatum.mappings.length + " && model.getMarkerImageUrl(datum['" + markerGroupDatum.field + "']," + JSON.stringify(markerGroupDatum.mappings) + ")}}");
+                    var markerGroup = angular.element('<div class="marker-group"></div>');
+                    var image = angular.element('<img class="marker-image"></img>');
+                    image.attr('ng-src', "{{smartTableModel.getMarkerImageUrl(datum['" + markerGroupDatum.field + "']," + JSON.stringify(markerGroupDatum.mappings) + ")}}");
                     markerGroup.append(image);
                     markerContainer.append(markerGroup);
                 }
+                cell.append(markerContainer);
             }
             if (field) {
                 if (columns[i].isFieldActionable) {
                     cell.addClass('has-actionable-field');
-                    var anchor = $('<a href=""></a>');
-                    anchor.attr('ng-click', "model.onAction('" + field + "',null,datum)");
+                    var anchor = angular.element('<a href=""></a>');
+                    anchor.attr('ng-click', "smartTableModel.onAction('" + field + "',null,datum)");
                     anchor.attr('ng-bind-html', "!datum['" + field + "'] ? ((datum['" + field + "']===0||datum['" + field + "']===false) ? datum['" + field + "'] : col.defaultText) : datum['" + field + "']");
                     fieldContainer.append(anchor);
                 } else {
-                    var span = $('<span></span>');
+                    var span = angular.element('<span></span>');
                     span.attr('ng-bind-html', "(!datum['" + field + "'] ? ((datum['" + field + "']===0||datum['" + field + "']===false) ? datum['" + field + "'] : '" + columns[i].defaultText + "') : datum['" + field + "']) | smartTableTextTruncate:" + columns[i].maxLength);
                     span.attr('title', "{{datum['" + field + "'] && " + columns[i].maxLength + " && datum['" + field + "'].length>" + columns[i].maxLength + " ? datum['" + field + "'] : ''}}");
                     fieldContainer.append(span);
                 }
+                cell.append(fieldContainer);
             }
             if (infoColumns && infoColumns.length) {
                 infoColumnsContainer.attr('smart-table-tooltip-wrapper', '');
                 infoColumnsContainer.addClass('tooltip-wrapper');
                 infoColumnsContainer.addClass(columns[i].infoTooltipPosition ? columns[i].infoTooltipPosition : 'left');
                 infoColumnsContainer.append('<a href="" class="info-icon"></a>');
-                var tooltipContainer = $('<div class="tooltip-container"></div>');
-                var tooltipContent = $('<div class="tooltip-content"></div>');
+                var tooltipContainer = angular.element('<div class="tooltip-container"></div>');
+                var tooltipContent = angular.element('<div class="tooltip-content"></div>');
                 for (var j = 0; j < infoColumns.length; j++) {
                     var infoColumnField = infoColumns[j].field;
-                    var infoColumnSpan = $('<span></span>');
+                    var infoColumnSpan = angular.element('<span></span>');
                     infoColumnSpan.append('<span class="title">' + infoColumns[j].title + ' : </span>');
-                    var infoColumnValue = $('<span></span>');
+                    var infoColumnValue = angular.element('<span></span>');
                     infoColumnValue.attr('ng-bind', "!datum['" + infoColumnField + "'] ? ((datum['" + infoColumnField + "']===0||datum['" + infoColumnField + "']===false) ? datum['" + infoColumnField + "'] : '" + infoColumns[j].defaultText + "') : datum['" + infoColumnField + "']");
                     infoColumnSpan.append(infoColumnValue);
                     infoColumnSpan.append('<br/>');
@@ -164,24 +201,22 @@
                 }
                 tooltipContainer.append(tooltipContent);
                 infoColumnsContainer.append(tooltipContainer);
+                cell.append(infoColumnsContainer);
             }
             if (actions && actions.length) {
                 for (var j = 0; j < actions.length; j++) {
-                    var actionAnchor = $('<a href=""></a>');
+                    var actionAnchor = angular.element('<a href=""></a>');
                     actionAnchor.attr('ng-click', "model.onAction(null," + actions[j].id + ",datum)");
                     if (actions[j].imageUrl) { actionAnchor.addClass('image-link'); }
                     if (!actions[j].imageUrl) {
                         actionAnchor.append('<span>' + actions[j].text + '</span>');
                     } else {
-                        actionAnchor.append('<img src="' + actions[j].imageUrl + '" title="' + actions[j].text + '"></img>')
+                        actionAnchor.append('<img src="' + actions[j].imageUrl + '" title="' + actions[j].text + '"></img>');
                     }
                     actionsContainer.append(actionAnchor);
                 }
+                cell.append(actionsContainer);
             }
-            // cell.append(markerContainer);
-            cell.append(fieldContainer);
-            // cell.append(infoColumnsContainer);
-            // cell.append(actionsContainer);
             rows.append(cell);
         }
         return rows;
@@ -209,10 +244,12 @@
         //         throw new Error('"'+model.dataFetchStartCallbackString+'" should return "request" object');
         //     }
         // }
+        var requestParams = model.getRequestParams(model.scope);
+        var postData = Object.assign({},model.sortParams,requestParams);
         return $http({
             method: 'POST',
-            url: '/api/users',
-            data: {},
+            url: model.apiUrlBasepath+model.config.apiUrl,
+            data: postData,
             params:{},
             headers:{}
         }).then(function (response) {
@@ -233,6 +270,51 @@
         }, function (error) {
             return $q.reject(error);
         });
+    }
+
+    function sortBy(model,column){
+        model.sortParams.sortColumn = column;
+        if (model.sortParams.sortColumn === model.currentSortColumn) {
+            model.sortParams.sortOrder = model.sortParams.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            model.sortParams.sortOrder = 'asc';
+            model.currentSortColumn = model.sortParams.sortColumn;
+        }
+        model.resetAndReload(true);
+    }
+
+    function smartTableTextTruncate(){
+        return function(text,length){
+            if(text && length && text.length > length){
+                return text.substr(0,length) + '...';
+            }else{
+                return text;
+            }
+        };
+    }
+
+    function smartTableTooltipWrapper(){
+        var getTextWidth = function (element) {
+            var text = element.html();
+            element.html('<span>' + text + '</span>');
+            var width = element.find('span:first').clientWidth;
+            element.html(text);
+            return width;
+        };
+        return {
+            // restrict: 'C',
+            link: {
+                pre: angular.noop,
+                post: function (scope, element) {
+                    element.on('mouseenter', function () {
+                        var textWidth = getTextWidth(element.find('.tooltip-content'));
+                        if (textWidth < 260) {
+                            element.find('.tooltip-container').width(textWidth + 1);
+                        }
+                    });
+                }
+            }
+        };
     }
 
 })(angular);

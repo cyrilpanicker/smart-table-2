@@ -1,43 +1,43 @@
 <div class="smart-table">
-    <div class="top-pagination" ng-if="model.config.isPaginated"
+    <div class="top-pagination" ng-if="smartTableModel.config.isPaginated"
         ng-include="'dist/smart-table-pagination.html'"
     >
     </div>
     <table>
-        <!--<thead>
+        <thead>
             <tr>
-                <th class="row-select" ng-show="model.config.isRowSelectable">
-                    <input id="selectAllCheckBox" type="checkbox" ng-checked="model.allRowsSelected" ng-click="model.onSelectAllClick($event)" />
+                <th class="row-select" ng-show="smartTableModel.config.isRowSelectable">
+                    <input id="selectAllCheckBox" type="checkbox" ng-checked="smartTableModel.allRowsSelected" ng-click="smartTableModel.onSelectAllClick($event)" />
                 </th>
-                <th ng-repeat="col in params.$params.columns"
-                    ng-click="col.isSortable && params.serverSortBy(col.field)"
+                <th ng-repeat="column in smartTableModel.config.columns"
+                    ng-click="column.isSortable && smartTableModel.sortBy(column.field)"
                     ng-class="{
-                        'sortable':col.isSortable,
-                        'sort-asc':model.sortParams.sortColumn===col.field && model.sortParams.sortOrder==='asc',
-                        'sort-desc':model.sortParams.sortColumn===col.field && model.sortParams.sortOrder==='desc'
+                        'sortable':column.isSortable,
+                        'sort-asc':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder==='asc',
+                        'sort-desc':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder==='desc'
                     }"
-                    ng-style="{'width':col.width+'%'}"
+                    ng-style="{'width':column.width+'%'}"
                 >
-                    <div ng-bind="col.title"></div>
+                    <div ng-bind="column.title"></div>
                 </th>
             </tr>
-        </thead>-->
+        </thead>
         <tbody>
-            <!--<tr class="no-records" ng-show="!model.loading && !$data.length">
-                <td colspan="{{params.$params.columns.length + params.$params.isRowSelectable}}"
-                    ng-bind="model.noRecordsMessage"
+            <tr class="no-records" ng-show="!smartTableModel.loading && !smartTableModel.$data.length">
+                <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}"
+                    ng-bind="smartTableModel.config.noRecordsMessage"
                 >
                 </td>
             </tr>
-            <tr class="loading-message" ng-show="model.loading">
-                <td colspan="{{params.$params.columns.length + params.$params.isRowSelectable}}"
-                    ng-bind="model.loadingMessage"
+            <tr class="loading-message" ng-show="smartTableModel.loading">
+                <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}"
+                    ng-bind="smartTableModel.config.loadingMessage"
                 >
                 </td>
-            </tr>-->
+            </tr>
         </tbody>
     </table>
-    <div class="bottom-pagination" ng-if="model.config.isPaginated"
+    <div class="bottom-pagination" ng-if="smartTableModel.config.isPaginated"
         ng-include="'dist/smart-table-pagination.html'"
     >
     </div>
