@@ -1,0 +1,20 @@
+<nav ng-init="model=smartTableModel"> 
+    <p ng-show="model.totalItems">{{model.paginationTitle}}</p>
+    <ul ng-show="model.totalItems">
+        <li class="previous" ng-class="{'disabled': model.page === 1}">
+            <a href="" ng-click="model.previousPage(model.page === 1)">
+                <span>« PREV</span>
+            </a>
+        </li>
+        <li ng-class="{'selected': model.page == page}" ng-repeat="page in model.pagesArray">
+            <a href="" ng-click="model.selectPage(page)">
+                <span ng-bind="page"></span>
+            </a>
+        </li>
+        <li class="next" ng-class="{'disabled': model.page === model.pageCount}">
+            <a href="" ng-click="model.nextPage(model.page === model.pageCount)">
+                <span>NEXT »</span>
+            </a>
+        </li>
+    </ul>
+</nav>

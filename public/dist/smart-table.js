@@ -50,6 +50,28 @@
                     markerImageElement.attr('src',model.getMarkerImageUrl(value,mapping));
                 }
             };
+            model.selectPage = function(page){
+                model.page = page;
+                var currentBlock = model.getCurrentBlock;
+                if(!model.previousBlock){
+                    model.previousBlock = currentBlock;
+                    updatePagerParams();
+                    model.reload();
+                }else if(model.previousBlock === currentBlock){
+                    model.reload();    
+                }else{
+                    
+                }
+                model.reload();
+            };
+            model.nextPage = function(isDisabled){
+                if(isDisabled)return;
+                model.selectPage(model.page+1);
+            };
+            model.previousPage = function(isDisabled){
+                if(isDisabled)return;
+                model.selectPage(model.page-1);
+            };
             model.reload(true);
         });
     }
@@ -66,22 +88,32 @@
             model.resultSet = [];
             model.template = getTemplate(config.columns,config.isRowSelectable);
             console.log(model.template[0]);
-            model.getPageCount = function(){
+            model.previousBlock = null;
+            var cachedResponse = null;
+            if(model.config.isPaginated){
+                model.pagerParams = {};
+                model.previousBlock = model.getCurrentBlock();
+                updatePagerParams();
+            }
+
+            function getPageCount(){
                 if(model.config.rowsPerPage && model.totalItems){
                     return Math.ceil(model.totalItems/model.config.rowsPerPage);
                 }else{
                     return 0;
                 }
-            };
+            }
+
             model.getCurrentBlock = function(){
                 return Math.ceil(model.page/model.config.pagesPerBlock);
             };
-            model.generatePagesArray = function(){
+
+            var generatePagesArray = function(){
                 var pages = [];
-                var pageCount = model.getPageCount();
+                var pageCount = getPageCount();
                 if(pageCount >= 1){
                     var startIndex, endIndex;
-                    var currentBlock = getCurrentBlock();
+                    var currentBlock = model.getCurrentBlock();
                     var pagesPerBlock = model.config.pagesPerBlock;
                     if(currentBlock === 1){
                         startIndex = 1;
@@ -94,19 +126,139 @@
                         endIndex = pageCount;
                     }
                     for(var index=startIndex; index<=endIndex; index++){
-                        pages.push({
-                            number:index,
-                            active:model.page !== index
-                        });
+                        pages.push(index);
                     }
                 }
                 return pages;
             };
-            model.reload = function(fetchFromServer){
+
+            function updatePaginationBar(){
+                model.pagesArray = generatePagesArray();
+                model.pageCount = getPageCount();
+                var from = (model.page - 1) * model.config.rowsPerPage + 1;
+                var to = model.page * model.config.rowsPerPage;
+                if (to > model.totalItems) {
+                    to = model.totalItems;
+                }
+                model.paginationTitle = model.config.paginationTitleTemplate
+                    .replace('{FROM}', from)
+                    .replace('{TO}', to)
+                    .replace('{TOTAL}', model.totalItems);
+            }
+
+            function getSlicedDataByPageBlock(){
+                return model.resultSet.slice(
+                    (model.page-1) * model.config.rowsPerPage,
+                    model.page * model.config.rowsPerPage
+                );
+            }
+
+            function updatePagerParams(){
+                if(!model.page)return;
+                var currentBlock = model.getCurrentBlock();
+                if(model.previousBlock === currentBlock){
+                    model.pagerParams.startPage = model.page;
+                    var pageCount = getPageCount();
+                    if(!model.totalItems){
+                        model.pagerParams.endPage = model.config.pagesPerBlock;
+                    }else{
+                        if(pageCount <= model.config.pagesPerBlock){
+                            model.pagerParams.endPage = pageCount;
+                        }else{
+                            model.pagerParams.endPage = model.config.pagesPerBlock;
+                        }
+                    }
+                }else{
+
+                }
+            }
+
+            // this.pagerParams = function () {
+            //     var self = this;
+            //     if (!!self.page()) {
+            //         var currMultiplier = self.multiplier();
+            //         if (self.prevMultipler !== currMultiplier) {
+            //             if (self.prevMultipler < currMultiplier) {
+            //                 return {
+            //                     startPage: self.page(),
+            //                     get endPage() {
+            //                         var value = self.page() + self.$params.pagerSeriesCount - 1;
+            //                         if (self.total() === 0) {
+            //                             return value;
+            //                         }
+            //                         var numPages = Math.ceil(self.total() / self.count());
+            //                         if (value <= numPages) {
+            //                             return value;
+            //                         } else {
+            //                             return numPages;
+            //                         }
+            //                     }
+            //                 }
+            //             } else {
+            //                 return {
+            //                     startPage: self.page() - self.$params.pagerSeriesCount + 1,
+            //                     get endPage() {
+            //                         if (self.page() < 0) {
+            //                             return 1;
+            //                         } else {
+            //                             return self.page();
+            //                         }
+            //                     }
+            //                 }
+            //             }
+            //         } else {
+            //             return {
+            //                 startPage: self.page(),
+            //                 get endPage() {
+            //                     var value = self.page() + self.$params.pagerSeriesCount - 1;
+            //                     if (self.total() === 0) {
+            //                         return value;
+            //                     }
+            //                     var numPages = Math.ceil(self.total() / self.count());
+            //                     if (value <= numPages) {
+            //                         return value;
+            //                     } else {
+            //                         return numPages;
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            // };
+
+            function getServerData(){
                 model.loading = true;
+                var requestParams = model.getRequestParams(model.scope);
+                var postData = angular.extend({},model.sortParams,requestParams);
+                if(model.config.isPaginated){
+                    postData = angular.extend(postData,model.pagerParams,{pageSize: model.config.rowsPerPage});
+                }
+                return $http({
+                    method: 'POST',
+                    url: model.apiUrlBasepath+model.config.apiUrl,
+                    data: postData,
+                    params:{},
+                    headers:{}
+                }).then(function (response) {
+                    cachedResponse = response.data;
+                    return response.data;
+                }, function (error) {
+                    return $q.reject(error);
+                });
+            }
+
+            function getCachedData(){
+                if(cachedResponse){
+                    return Promise.resolve(cachedResponse);
+                }else{
+                    return getServerData();
+                }
+            }
+
+            model.reload = function(fetchFromServer){
                 var promise;
                 if(fetchFromServer){
-                    promise = getServerData(model,$http);
+                    promise = getServerData();
                 }else{
                     promise = getCachedData();
                 }
@@ -114,11 +266,12 @@
                     model.totalItems = data.totalItems;
                     model.resultSet = data.resultSet;
                     if(model.config.isPaginated){
-                        model.$data = model.filterDataByPageBlock(data);
+                        model.$data = getSlicedDataByPageBlock();
                     }else{
                         model.$data = model.resultSet;
                     }
                     $timeout(model.addMarkerImages);
+                    updatePaginationBar();
                     model.loading = false;
                 },function(error){
                     console.log('SMART-TABLE-ERROR : \n'+JSON.stringify(error));
@@ -129,6 +282,8 @@
                 model.sortParams = angular.copy(model.defaultSortParams);
             };
             model.resetAndReload = function(retainSort){
+                model.previousBlock = null;
+                model.totalItems = 0;
                 if(!retainSort){
                     model.resetSorting();
                 }
@@ -233,56 +388,6 @@
         return rows;
     }
 
-    function getServerData(model,$http){
-        // var requestParams = _scope.$eval(model.requestParamsString);
-        // var dataFetchStartCallback = _scope.$eval(model.dataFetchStartCallbackString);
-        // var dataFetchEndCallback = _scope.$eval(model.dataFetchEndCallbackString);
-        // var apiUrlBasepath = _scope.$eval(model.apiUrlBasepathString);
-        // postData = Object.assign({}, requestParams, model.sortParams);
-        // if (params.$params.paginate) {
-        //     postData = Object.assign(postData, _params.pagerData, { pageSize: params.$params.count });
-        // }
-        // var request = {
-        //     method: 'POST',
-        //     url: apiUrlBasepath + parameters.apiUrl,
-        //     data: postData,
-        //     params:{},
-        //     headers:{}
-        // };                
-        // if (dataFetchStartCallback && typeof dataFetchStartCallback === 'function') {
-        //     request = dataFetchStartCallback(request);
-        //     if(!request){
-        //         throw new Error('"'+model.dataFetchStartCallbackString+'" should return "request" object');
-        //     }
-        // }
-        var requestParams = model.getRequestParams(model.scope);
-        var postData = Object.assign({},model.sortParams,requestParams);
-        return $http({
-            method: 'POST',
-            url: model.apiUrlBasepath+model.config.apiUrl,
-            data: postData,
-            params:{},
-            headers:{}
-        }).then(function (response) {
-            // if (dataFetchEndCallback && typeof dataFetchEndCallback === 'function') {
-            //     response = dataFetchEndCallback(response,null);
-            //     if(!response){
-            //         throw new Error('"'+model.dataFetchEndCallbackString+'" should return "response" object');
-            //     }
-            // }
-            // if(!response.data.hasOwnProperty('resultSet')){
-            //     throw new Error('resultSet node not found in response.');
-            // }
-            // if(!response.data.hasOwnProperty('totalItems')){
-            //     throw new Error('totalItems node not found in response.');
-            // }
-            // cachedResponse = response.data;
-            return response.data;
-        }, function (error) {
-            return $q.reject(error);
-        });
-    }
-
     function sortBy(model,column){
         model.sortParams.sortColumn = column;
         if (model.sortParams.sortColumn === model.currentSortColumn) {
@@ -329,24 +434,3 @@
     }
 
 })(angular);
-
-if (typeof Object.assign != 'function') {
-    Object.assign = function(target, varArgs) {
-        'use strict';
-        if (target == null) {
-            throw new TypeError('Cannot convert undefined or null to object');
-        }
-        var to = Object(target);
-        for (var index = 1; index < arguments.length; index++) {
-            var nextSource = arguments[index];
-            if (nextSource != null) {
-                for (var nextKey in nextSource) {
-                    if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-                    	to[nextKey] = nextSource[nextKey];
-                    }
-                }
-            }
-        }
-        return to;
-    };
-}

@@ -17,7 +17,7 @@ app.post('/api/users',(request,response) => {
             //     "totalItems":0
             // });
         }else{
-            if(startPage===1 && endPage===4){
+            if(startPage===1 && (endPage===3 || endPage===4)){
                 response.send(data[0]);
             }else if(startPage===5 && endPage===5){
                 response.send(data[1]);
@@ -46,9 +46,15 @@ var data = [
             {"id":3,"name":null,"skill":"3","info1":"3","info2":"3","isRush":1,"docCategory":3,"isPolicy":false,"isNonPolicy":false,"isOthers":true,"isDmsOnly":false,"isEpicOnly":true},
             {"id":4,"name":"4","skill":"4","info1":"4","info2":"4","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
             {"id":5,"name":"5","skill":"Skill5","info1":"5","info2":"5","isRush":1,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":true,"isEpicOnly":false},
-            {"id":6,"name":"6","skill":"6","info1":"6","info2":"6","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false}
+            {"id":6,"name":"6","skill":"6","info1":"6","info2":"6","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
+            {"id":7,"name":"7","skill":"7","info1":"7","info2":"7","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
+            {"id":8,"name":"8","skill":"8","info1":"8","info2":"8","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
+            {"id":9,"name":"9","skill":"9","info1":"9","info2":"9","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
+            {"id":10,"name":"10","skill":"10","info1":"10","info2":"10","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
+            {"id":11,"name":"11","skill":"11","info1":"11","info2":"11","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false},
+            {"id":12,"name":"12","skill":"12","info1":"12","info2":"12","isRush":0,"docCategory":0,"isPolicy":false,"isNonPolicy":false,"isOthers":false,"isDmsOnly":false,"isEpicOnly":false}
         ],
-        "totalItems":6
+        "totalItems":12
     },
     {
         "resultSet":[
