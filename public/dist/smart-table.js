@@ -26,7 +26,6 @@
             element.find('tbody').prepend(compiledTemplate);
             model.scope = scope;
             model.currentSortColumn = null;
-            model.sortParams = { sortColumn: null, sortOrder: null };
             model.defaultSortParams = { sortColumn: null, sortOrder: null };
             if(model.config.defaultSortColumn){
                 model.defaultSortParams.sortColumn = model.config.defaultSortColumn;
@@ -52,17 +51,17 @@
             };
             model.selectPage = function(page){
                 model.page = page;
-                var currentBlock = model.getCurrentBlock;
+                var currentBlock = model.getCurrentBlock();
                 if(!model.previousBlock){
                     model.previousBlock = currentBlock;
-                    updatePagerParams();
                     model.reload();
-                }else if(model.previousBlock === currentBlock){
-                    model.reload();    
+                }else if(model.previousBlock===currentBlock){
+                    model.reload();
                 }else{
-                    
+                    model.updatePagerParams();
+                    model.previousBlock = currentBlock;
+                    model.reload(true);
                 }
-                model.reload();
             };
             model.nextPage = function(isDisabled){
                 if(isDisabled)return;
@@ -90,11 +89,6 @@
             console.log(model.template[0]);
             model.previousBlock = null;
             var cachedResponse = null;
-            if(model.config.isPaginated){
-                model.pagerParams = {};
-                model.previousBlock = model.getCurrentBlock();
-                updatePagerParams();
-            }
 
             function getPageCount(){
                 if(model.config.rowsPerPage && model.totalItems){
@@ -146,85 +140,42 @@
                     .replace('{TOTAL}', model.totalItems);
             }
 
-            function getSlicedDataByPageBlock(){
-                return model.resultSet.slice(
-                    (model.page-1) * model.config.rowsPerPage,
-                    model.page * model.config.rowsPerPage
-                );
+            function getDataFilteredByPage(){
+                var startIndex = (model.page - (model.config.pagesPerBlock * (model.getCurrentBlock() - 1))) - 1;
+                return model.resultSet.slice(startIndex * model.config.rowsPerPage, (startIndex+1) * model.config.rowsPerPage);
             }
 
-            function updatePagerParams(){
+            model.updatePagerParams = function(){
                 if(!model.page)return;
-                var currentBlock = model.getCurrentBlock();
-                if(model.previousBlock === currentBlock){
-                    model.pagerParams.startPage = model.page;
-                    var pageCount = getPageCount();
-                    if(!model.totalItems){
-                        model.pagerParams.endPage = model.config.pagesPerBlock;
-                    }else{
-                        if(pageCount <= model.config.pagesPerBlock){
-                            model.pagerParams.endPage = pageCount;
-                        }else{
-                            model.pagerParams.endPage = model.config.pagesPerBlock;
-                        }
-                    }
+                if(!model.previousBlock){
+                    model.pagerParams.startPage = 1;
+                    model.pagerParams.endPage = model.config.pagesPerBlock;
                 }else{
-
+                    var currentBlock = model.getCurrentBlock();
+                    if(model.previousBlock < currentBlock){
+                        model.pagerParams.startPage = model.page;
+                        var value = model.page + model.config.pagesPerBlock - 1;
+                        if(!model.totalItems){
+                            model.pagerParams.endPage = value;
+                        }else{
+                            var pageCount = getPageCount();
+                            if(value <= pageCount){
+                                model.pagerParams.endPage = value;
+                            }else{
+                                model.pagerParams.endPage = pageCount;
+                            }
+                        }
+                    }else{
+                        model.pagerParams.startPage = model.page - model.config.pagesPerBlock + 1;
+                        model.pagerParams.endPage = model.page;
+                    }
                 }
-            }
+            };
 
-            // this.pagerParams = function () {
-            //     var self = this;
-            //     if (!!self.page()) {
-            //         var currMultiplier = self.multiplier();
-            //         if (self.prevMultipler !== currMultiplier) {
-            //             if (self.prevMultipler < currMultiplier) {
-            //                 return {
-            //                     startPage: self.page(),
-            //                     get endPage() {
-            //                         var value = self.page() + self.$params.pagerSeriesCount - 1;
-            //                         if (self.total() === 0) {
-            //                             return value;
-            //                         }
-            //                         var numPages = Math.ceil(self.total() / self.count());
-            //                         if (value <= numPages) {
-            //                             return value;
-            //                         } else {
-            //                             return numPages;
-            //                         }
-            //                     }
-            //                 }
-            //             } else {
-            //                 return {
-            //                     startPage: self.page() - self.$params.pagerSeriesCount + 1,
-            //                     get endPage() {
-            //                         if (self.page() < 0) {
-            //                             return 1;
-            //                         } else {
-            //                             return self.page();
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         } else {
-            //             return {
-            //                 startPage: self.page(),
-            //                 get endPage() {
-            //                     var value = self.page() + self.$params.pagerSeriesCount - 1;
-            //                     if (self.total() === 0) {
-            //                         return value;
-            //                     }
-            //                     var numPages = Math.ceil(self.total() / self.count());
-            //                     if (value <= numPages) {
-            //                         return value;
-            //                     } else {
-            //                         return numPages;
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // };
+            if(model.config.isPaginated){
+                model.pagerParams = {};
+                model.updatePagerParams();
+            }
 
             function getServerData(){
                 model.loading = true;
@@ -266,12 +217,18 @@
                     model.totalItems = data.totalItems;
                     model.resultSet = data.resultSet;
                     if(model.config.isPaginated){
-                        model.$data = getSlicedDataByPageBlock();
+                        $timeout(function(){
+                            model.$data = getDataFilteredByPage();
+                        });
                     }else{
-                        model.$data = model.resultSet;
+                        $timeout(function(){
+                            model.$data = model.resultSet;
+                        });
                     }
-                    $timeout(model.addMarkerImages);
-                    updatePaginationBar();
+                    // $timeout(model.addMarkerImages);
+                    if(model.config.isPaginated){
+                        updatePaginationBar();
+                    }
                     model.loading = false;
                 },function(error){
                     console.log('SMART-TABLE-ERROR : \n'+JSON.stringify(error));
@@ -282,15 +239,21 @@
                 model.sortParams = angular.copy(model.defaultSortParams);
             };
             model.resetAndReload = function(retainSort){
+                model.page = 1;
                 model.previousBlock = null;
                 model.totalItems = 0;
+                cachedResponse = null;
+                model.updatePagerParams();
                 if(!retainSort){
                     model.resetSorting();
                 }
                 model.reload(true);
             };
             model.sortBy = sortBy.bind(null,model);
+            // var counter = 0;
             model.getMarkerImageUrl = function (value, mappings) {
+                // counter++;
+                // console.log(counter);
                 var filteredMappings = mappings.filter(function (mapping) {
                     return mapping.mappedValue == value;
                 });
@@ -326,8 +289,9 @@
                     var markerGroupDatum = markers[j];
                     var markerGroup = angular.element('<div class="marker-group"></div>');
                     var image = angular.element('<img class="marker-image"></img>');
-                    image.attr('data-value',"{{::datum['"+markerGroupDatum.field+"']}}");
-                    image.attr('data-mapping',JSON.stringify(markerGroupDatum.mappings));
+                    image.attr('ng-src', "{{smartTableModel.getMarkerImageUrl(datum['" + markerGroupDatum.field + "']," + JSON.stringify(markerGroupDatum.mappings) + ")}}");
+                    // image.attr('data-value',"{{::datum['"+markerGroupDatum.field+"']}}");
+                    // image.attr('data-mapping',JSON.stringify(markerGroupDatum.mappings));
                     markerGroup.append(image);
                     markerContainer.append(markerGroup);
                 }
