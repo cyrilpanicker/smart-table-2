@@ -11,5 +11,17 @@ angular.module('app',['smartTable'])
 		};
 		$scope.apiUrlBasepath = 'http://localhost:10000/api/';
 		$scope.dataTable = new SmartTableModel(response.data);
+		$scope.onRowSelect = function(selectedRows){
+			// console.log(selectedRows);
+		};
+		$scope.onUserAction = function(field,actionId,datum){
+			console.log(field,actionId,datum);
+		}
+		$scope.onUsersDataFetchStart = function(request){
+			return request;
+		};
+		$scope.onUsersDataFetchEnd = function(response){
+			return response;
+		};
 	});
 }]);

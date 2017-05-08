@@ -7,7 +7,7 @@
     <title>SMART-TABLE-2</title>
     <link rel="stylesheet" href="dist/smart-table.css" />
     <link rel="stylesheet" href="app.css" />
-    <!--<script src="libs/jquery.min.js"></script>-->
+    <script src="libs/jquery.min.js"></script>
     <script src="libs/angular.min.js"></script>
     <script src="libs/angular-sanitize.min.js"></script>
     <script src="dist/smart-table.js"></script>
@@ -25,6 +25,10 @@
             <div smart-table="dataTable"
                 api-url-basepath="apiUrlBasepath"
                 request-params="searchParams"
+                on-row-select="onRowSelect"
+                on-action="onUserAction"
+                on-fetch-start="onUsersDataFetchStart"
+                on-fetch-end="onUsersDataFetchEnd"
             ></div>
         </div>
     </div>

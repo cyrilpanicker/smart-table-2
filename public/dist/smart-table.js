@@ -4,7 +4,7 @@
 
     angular.module('smartTable',['ngSanitize'])
         .directive('smartTable',['$compile','$parse',smartTable])
-        .factory('SmartTableModel',['$http','$timeout',SmartTableModel])
+        .factory('SmartTableModel',['$q','$http','$timeout',SmartTableModel])
         .filter('smartTableTextTruncate',[smartTableTextTruncate])
         .directive('smartTableTooltipWrapper',[smartTableTooltipWrapper])
 
@@ -25,6 +25,7 @@
             var compiledTemplate = $compile(model.template)(scope);
             element.find('tbody').prepend(compiledTemplate);
             model.scope = scope;
+            model.selectAllCheckBox = document.getElementsByClassName('select-all-checkBox')[0];
             model.currentSortColumn = null;
             model.defaultSortParams = { sortColumn: null, sortOrder: null };
             if(model.config.defaultSortColumn){
@@ -37,6 +38,12 @@
             model.sortParams = angular.copy(model.defaultSortParams);
             model.selectedRows = [];
             model.apiUrlBasepath = scope.$eval(attributes.apiUrlBasepath);
+            model.rowSelectCallback = scope.$eval(attributes.onRowSelect);
+            model.onAction = scope.$eval(attributes.onAction);
+            model.dataFetchStartCallbackString = attributes.onFetchStart;
+            model.dataFetchEndCallbackString = attributes.onFetchEnd;
+            model.dataFetchStartCallback = scope.$eval(model.dataFetchStartCallbackString);
+            model.dataFetchEndCallback = scope.$eval(model.dataFetchEndCallbackString);
             model.getRequestParams = $parse(attributes.requestParams);
             model.config.noRecordsMessage = model.config.noRecordsMessage || 'No records to show.';
             model.config.loadingMessage = model.config.loadingMessage || 'Loading data';
@@ -75,7 +82,7 @@
         });
     }
 
-    function SmartTableModel($http,$timeout){
+    function SmartTableModel($q,$http,$timeout){
         return function(config){
             var model = this;
             model.loading = true;
@@ -184,13 +191,32 @@
                 if(model.config.isPaginated){
                     postData = angular.extend(postData,model.pagerParams,{pageSize: model.config.rowsPerPage});
                 }
-                return $http({
+                var request = {
                     method: 'POST',
-                    url: model.apiUrlBasepath+model.config.apiUrl,
+                    url: model.apiUrlBasepath + model.config.apiUrl,
                     data: postData,
                     params:{},
                     headers:{}
-                }).then(function (response) {
+                };
+                if(model.dataFetchStartCallback && typeof model.dataFetchStartCallback === 'function'){
+                    request = model.dataFetchStartCallback(request);
+                    if(!request){
+                        return $q.reject('"'+model.dataFetchStartCallbackString+'" should return "request" object');
+                    }
+                }
+                return $http(request).then(function (response) {
+                    if(model.dataFetchEndCallback && typeof model.dataFetchEndCallback === 'function'){
+                        response = model.dataFetchEndCallback(response);
+                        if(!response){
+                            return $q.reject('"'+model.dataFetchEndCallbackString+'" should return "response" object');
+                        }
+                    }
+                    if(!response.data.hasOwnProperty('resultSet')){
+                        return $q.reject('"resultSet" node not found in response.');
+                    }
+                    if(!response.data.hasOwnProperty('totalItems')){
+                        return $q.reject('"totalItems" node not found in response.');
+                    }
                     cachedResponse = response.data;
                     return response.data;
                 }, function (error) {
@@ -216,22 +242,24 @@
                 promise.then(function(data){
                     model.totalItems = data.totalItems;
                     model.resultSet = data.resultSet;
-                    if(model.config.isPaginated){
-                        $timeout(function(){
+                    $timeout(function(){
+                        if(model.config.isPaginated){
                             model.$data = getDataFilteredByPage();
-                        });
-                    }else{
-                        $timeout(function(){
+                        }else{
                             model.$data = model.resultSet;
-                        });
-                    }
-                    // $timeout(model.addMarkerImages);
-                    if(model.config.isPaginated){
-                        updatePaginationBar();
-                    }
-                    model.loading = false;
+                        }
+                        // $timeout(model.addMarkerImages);
+                        if(model.config.isPaginated){
+                            updatePaginationBar();
+                        }
+                        if(model.config.isRowSelectable){
+                            resetSelectedRows();
+                            model.updateSelectedRows();
+                        }
+                        model.loading = false;
+                    });
                 },function(error){
-                    console.log('SMART-TABLE-ERROR : \n'+JSON.stringify(error));
+                    throw new Error('SMART-TABLE-ERROR : \n'+error);
                     model.loading = false;
                 });
             };
@@ -263,6 +291,55 @@
                     return filteredMappings[0].imageUrl;
                 }
             };
+
+            function resetSelectedRows(){
+                if (!model.$data) return;
+                model.$data.forEach(function (datum) {
+                    datum._isSelected = false;
+                });                
+            }
+
+            function selectAllRows(){
+                if(!model.$data)return;
+                model.$data.forEach(function(datum){
+                    datum._isSelected = true;
+                });
+            }
+
+            model.updateSelectedRows = function(){
+                if(!model.$data)return;
+                var selectedRows = model.$data.filter(function (datum) { return datum._isSelected; });
+                if(selectedRows.length === model.$data.length){
+                    angular.element(model.selectAllCheckBox).prop('indeterminate', false);
+                    if (model.$data.length) {
+                        model.allRowsSelected = true;
+                    }
+                }else{
+                    if(selectedRows.length !== 0){
+                        angular.element(model.selectAllCheckBox).prop('indeterminate', true);
+                    }else{
+                        angular.element(model.selectAllCheckBox).prop('indeterminate', false);
+                    }
+                    model.allRowsSelected = false;
+                }
+                if (model.rowSelectCallback && typeof model.rowSelectCallback === 'function') {
+                    model.rowSelectCallback(selectedRows.map(function (_row) {
+                        var row = angular.copy(_row);
+                        delete row._isSelected;
+                        return row;
+                    }));
+                }
+            };
+
+            model.onSelectAllClick = function(event){
+                if(event.target.checked){
+                    selectAllRows();
+                }else{
+                    resetSelectedRows();
+                }
+                model.updateSelectedRows();
+            };
+
         };
     }
 
@@ -270,7 +347,7 @@
         var rows = angular.element('<tr class="data-rows" ng-repeat="datum in smartTableModel.$data" ng-show="!smartTableModel.loading && smartTableModel.$data.length"></tr>');
         if (isRowSelectable) {
             var rowSelectorCell = angular.element('<td class="row-select"></td>')
-            rowSelectorCell.append('<input type="checkbox" ng-model="datum._isSelected" ng-click="model.updateSelectedRows()" />');
+            rowSelectorCell.append('<input type="checkbox" ng-model="datum._isSelected" ng-click="smartTableModel.updateSelectedRows()" />');
             rows.append(rowSelectorCell);
         }
         for (var i = 0; i < columns.length; i++) {
@@ -302,11 +379,11 @@
                     cell.addClass('has-actionable-field');
                     var anchor = angular.element('<a href=""></a>');
                     anchor.attr('ng-click', "smartTableModel.onAction('" + field + "',null,datum)");
-                    anchor.attr('ng-bind-html', "!datum['" + field + "'] ? ((datum['" + field + "']===0||datum['" + field + "']===false) ? datum['" + field + "'] : col.defaultText) : datum['" + field + "']");
+                    anchor.attr('ng-bind-html', "datum['" + field + "']");
                     fieldContainer.append(anchor);
                 } else {
                     var span = angular.element('<span></span>');
-                    span.attr('ng-bind-html', "(!datum['" + field + "'] ? ((datum['" + field + "']===0||datum['" + field + "']===false) ? datum['" + field + "'] : '" + columns[i].defaultText + "') : datum['" + field + "']) | smartTableTextTruncate:" + columns[i].maxLength);
+                    span.attr('ng-bind-html', "datum['" + field + "'] | smartTableTextTruncate:" + columns[i].maxLength);
                     span.attr('title', "{{datum['" + field + "'] && " + columns[i].maxLength + " && datum['" + field + "'].length>" + columns[i].maxLength + " ? datum['" + field + "'] : ''}}");
                     fieldContainer.append(span);
                 }
@@ -324,7 +401,7 @@
                     var infoColumnSpan = angular.element('<span></span>');
                     infoColumnSpan.append('<span class="title">' + infoColumns[j].title + ' : </span>');
                     var infoColumnValue = angular.element('<span></span>');
-                    infoColumnValue.attr('ng-bind', "!datum['" + infoColumnField + "'] ? ((datum['" + infoColumnField + "']===0||datum['" + infoColumnField + "']===false) ? datum['" + infoColumnField + "'] : '" + infoColumns[j].defaultText + "') : datum['" + infoColumnField + "']");
+                    infoColumnValue.attr('ng-bind', "datum['" + infoColumnField + "']");
                     infoColumnSpan.append(infoColumnValue);
                     infoColumnSpan.append('<br/>');
                     tooltipContent.append(infoColumnSpan);
@@ -336,7 +413,7 @@
             if (actions && actions.length) {
                 for (var j = 0; j < actions.length; j++) {
                     var actionAnchor = angular.element('<a href=""></a>');
-                    actionAnchor.attr('ng-click', "model.onAction(null," + actions[j].id + ",datum)");
+                    actionAnchor.attr('ng-click', "smartTableModel.onAction(null," + actions[j].id + ",datum)");
                     if (actions[j].imageUrl) { actionAnchor.addClass('image-link'); }
                     if (!actions[j].imageUrl) {
                         actionAnchor.append('<span>' + actions[j].text + '</span>');
@@ -375,14 +452,14 @@
 
     function smartTableTooltipWrapper(){
         var getTextWidth = function (element) {
+            console.log(element[0]);
             var text = element.html();
             element.html('<span>' + text + '</span>');
-            var width = element.find('span:first').clientWidth;
+            var width = element.find('span:first').width();
             element.html(text);
             return width;
         };
         return {
-            // restrict: 'C',
             link: {
                 pre: angular.noop,
                 post: function (scope, element) {
