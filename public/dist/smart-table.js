@@ -7,6 +7,10 @@
         .factory('SmartTableModel',['$q','$http','$timeout',SmartTableModel])
         .filter('smartTableTextTruncate',[smartTableTextTruncate])
         .directive('smartTableTooltipWrapper',[smartTableTooltipWrapper])
+        .run(['$templateCache', function ($templateCache) {
+            $templateCache.put('dist/smart-table-pagination.html', '<nav ng-init="model=smartTableModel"> <p ng-show="model.totalItems">{{model.paginationTitle}}</p><ul ng-show="model.totalItems"> <li class="previous" ng-class="{\'disabled\': model.page===1}"> <a href="" ng-click="model.previousPage(model.page===1)"> <span>« PREV</span> </a> </li><li ng-class="{\'selected\': model.page==page}" ng-repeat="page in model.pagesArray"> <a href="" ng-click="model.selectPage(page)"> <span ng-bind="page"></span> </a> </li><li class="next" ng-class="{\'disabled\': model.page===model.pageCount}"> <a href="" ng-click="model.nextPage(model.page===model.pageCount)"> <span>NEXT »</span> </a> </li></ul></nav>');
+            $templateCache.put('dist/smart-table.html', '<div class="smart-table"> <div class="top-pagination" ng-if="smartTableModel.config.isPaginated" ng-include="\'dist/smart-table-pagination.html\'" > </div><table> <thead> <tr> <th class="row-select" ng-show="smartTableModel.config.isRowSelectable"> <input class="select-all-checkBox" type="checkbox" ng-checked="smartTableModel.allRowsSelected" ng-click="smartTableModel.onSelectAllClick($event)"/> </th> <th ng-repeat="column in smartTableModel.config.columns" ng-click="column.isSortable && smartTableModel.sortBy(column.field)" ng-class="{\'sortable\':column.isSortable, \'sort-asc\':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder===\'asc\', \'sort-desc\':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder===\'desc\'}" ng-style="{\'width\':column.width+\'%\'}" > <div ng-bind="column.title"></div></th> </tr></thead> <tbody> <tr class="no-records" ng-show="!smartTableModel.loading && !smartTableModel.$data.length"> <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}" ng-bind="smartTableModel.config.noRecordsMessage" > </td></tr><tr class="loading-message" ng-show="smartTableModel.loading"> <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}" ng-bind="smartTableModel.config.loadingMessage" > </td></tr></tbody> </table> <div class="bottom-pagination" ng-if="smartTableModel.config.isPaginated" ng-include="\'dist/smart-table-pagination.html\'" > </div></div>');
+        }]);
 
     function smartTable($compile,$parse){
         return {
@@ -226,7 +230,7 @@
 
             function getCachedData(){
                 if(cachedResponse){
-                    return Promise.resolve(cachedResponse);
+                    return $q.resolve(cachedResponse);
                 }else{
                     return getServerData();
                 }
@@ -259,7 +263,8 @@
                         model.loading = false;
                     });
                 },function(error){
-                    throw new Error('SMART-TABLE-ERROR : \n'+error);
+                    console.log('SMART-TABLE-ERROR');
+                    console.log(error);
                     model.loading = false;
                 });
             };
@@ -452,7 +457,6 @@
 
     function smartTableTooltipWrapper(){
         var getTextWidth = function (element) {
-            console.log(element[0]);
             var text = element.html();
             element.html('<span>' + text + '</span>');
             var width = element.find('span:first').width();
