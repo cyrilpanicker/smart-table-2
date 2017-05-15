@@ -1,29 +1,29 @@
-(function(angular){
+(function (angular) {
 
     'use strict'
 
-    angular.module('smartTable',['ngSanitize'])
-        .directive('smartTable',['$compile','$parse',smartTable])
-        .factory('SmartTableModel',['$q','$http','$timeout',SmartTableModel])
-        .filter('smartTableTextTruncate',[smartTableTextTruncate])
-        .directive('smartTableTooltipWrapper',[smartTableTooltipWrapper])
+    angular.module('smartTable', ['ngSanitize', 'QuickList'])
+        .directive('smartTable', ['$compile', '$parse', smartTable])
+        .factory('SmartTableModel', ['$q', '$http', '$timeout', SmartTableModel])
+        .filter('smartTableTextTruncate', [smartTableTextTruncate])
+        .directive('smartTableTooltipWrapper', [smartTableTooltipWrapper])
         .run(['$templateCache', function ($templateCache) {
-            $templateCache.put('dist/smart-table-pagination.html', '<nav ng-init="model=smartTableModel"> <p ng-show="model.totalItems">{{model.paginationTitle}}</p><ul ng-show="model.totalItems"> <li class="previous" ng-class="{\'disabled\': model.page===1}"> <a href="" ng-click="model.previousPage(model.page===1)"> <span>« PREV</span> </a> </li><li ng-class="{\'selected\': model.page==page}" ng-repeat="page in model.pagesArray"> <a href="" ng-click="model.selectPage(page)"> <span ng-bind="page"></span> </a> </li><li class="next" ng-class="{\'disabled\': model.page===model.pageCount}"> <a href="" ng-click="model.nextPage(model.page===model.pageCount)"> <span>NEXT »</span> </a> </li></ul></nav>');
-            $templateCache.put('dist/smart-table.html', '<div class="smart-table"> <div class="top-pagination" ng-if="smartTableModel.config.isPaginated" ng-include="\'dist/smart-table-pagination.html\'" > </div><table> <thead> <tr> <th class="row-select" ng-show="smartTableModel.config.isRowSelectable"> <input class="select-all-checkBox" type="checkbox" ng-checked="smartTableModel.allRowsSelected" ng-click="smartTableModel.onSelectAllClick($event)"/> </th> <th ng-repeat="column in smartTableModel.config.columns" ng-click="column.isSortable && smartTableModel.sortBy(column.field)" ng-class="{\'sortable\':column.isSortable, \'sort-asc\':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder===\'asc\', \'sort-desc\':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder===\'desc\'}" ng-style="{\'width\':column.width+\'%\'}" > <div ng-bind="column.title"></div></th> </tr></thead> <tbody> <tr class="no-records" ng-show="!smartTableModel.loading && !smartTableModel.$data.length"> <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}" ng-bind="smartTableModel.config.noRecordsMessage" > </td></tr><tr class="loading-message" ng-show="smartTableModel.loading"> <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}" ng-bind="smartTableModel.config.loadingMessage" > </td></tr></tbody> </table> <div class="bottom-pagination" ng-if="smartTableModel.config.isPaginated" ng-include="\'dist/smart-table-pagination.html\'" > </div></div>');
+            $templateCache.put('dist/smart-table-pagination.html', '<nav ng-init="model=smartTableModel"> <p ng-show="model.totalItems">{{model.paginationTitle}}</p><ul ng-show="model.totalItems"> <li class="previous" ng-class="{\'disabled\': model.page===1}"> <a href="" ng-click="model.previousPage(model.page===1)"> <span>« PREV</span> </a> </li><li ng-class="{\'selected\': model.page==page}" quick-ng-repeat="page in model.pagesArray" quick-repeat-list="pagesList"> <a href="" ng-click="model.selectPage(page)"> <span ng-bind="page"></span> </a> </li><li class="next" ng-class="{\'disabled\': model.page===model.pageCount}"> <a href="" ng-click="model.nextPage(model.page===model.pageCount)"> <span>NEXT »</span> </a> </li></ul></nav>');
+            $templateCache.put('dist/smart-table.html', '<div class="smart-table"> <div class="top-pagination" ng-if="smartTableModel.config.isPaginated" ng-include="\'dist/smart-table-pagination.html\'" > </div><table> <thead> <tr> <th class="row-select" ng-show="smartTableModel.config.isRowSelectable"> <input class="select-all-checkBox" type="checkbox" ng-checked="smartTableModel.allRowsSelected" ng-click="smartTableModel.onSelectAllClick($event)"/> </th> <th quick-ng-repeat="column in smartTableModel.config.columns" quick-repeat-list="columnsList" ng-click="column.isSortable && smartTableModel.sortBy(column.field)" ng-class="{\'sortable\':column.isSortable, \'sort-asc\':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder===\'asc\', \'sort-desc\':smartTableModel.sortParams.sortColumn===column.field && smartTableModel.sortParams.sortOrder===\'desc\'}" ng-style="{\'width\':column.width+\'%\'}" > <div ng-bind="column.title"></div></th> </tr></thead> <tbody> <tr class="no-records" ng-show="!smartTableModel.loading && !smartTableModel.$data.length"> <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}" ng-bind="smartTableModel.config.noRecordsMessage" > </td></tr><tr class="loading-message" ng-show="smartTableModel.loading"> <td colspan="{{smartTableModel.config.columns.length + smartTableModel.config.isRowSelectable}}" ng-bind="smartTableModel.config.loadingMessage" > </td></tr></tbody> </table> <div class="bottom-pagination" ng-if="smartTableModel.config.isPaginated" ng-include="\'dist/smart-table-pagination.html\'" > </div></div>');
         }]);
 
-    function smartTable($compile,$parse){
+    function smartTable($compile, $parse) {
         return {
-            replace:true,
-            scope:true,
-            templateUrl:'dist/smart-table.html',
-            link:smartTableLink.bind(null,$compile,$parse)
+            replace: true,
+            scope: true,
+            templateUrl: 'dist/smart-table.html',
+            link: smartTableLink.bind(null, $compile, $parse)
         };
     }
 
-    function smartTableLink($compile, $parse, scope, element, attributes){
-        var deregisterWatcher = scope.$watch(attributes.smartTable,function(_model){
-            if(!_model)return;
+    function smartTableLink($compile, $parse, scope, element, attributes) {
+        var deregisterWatcher = scope.$watch(attributes.smartTable, function (_model) {
+            if (!_model) return;
             deregisterWatcher();
             var model = scope.smartTableModel = _model;
             var compiledTemplate = $compile(model.template)(scope);
@@ -32,11 +32,11 @@
             model.selectAllCheckBox = document.getElementsByClassName('select-all-checkBox')[0];
             model.currentSortColumn = null;
             model.defaultSortParams = { sortColumn: null, sortOrder: null };
-            if(model.config.defaultSortColumn){
+            if (model.config.defaultSortColumn) {
                 model.defaultSortParams.sortColumn = model.config.defaultSortColumn;
                 model.currentSortColumn = model.config.defaultSortColumn;
             }
-            if(model.config.defaultSortOrder){
+            if (model.config.defaultSortOrder) {
                 model.defaultSortParams.sortOrder = model.config.defaultSortOrder;
             }
             model.sortParams = angular.copy(model.defaultSortParams);
@@ -51,43 +51,43 @@
             model.getRequestParams = $parse(attributes.requestParams);
             model.config.noRecordsMessage = model.config.noRecordsMessage || 'No records to show.';
             model.config.loadingMessage = model.config.loadingMessage || 'Loading data';
-            model.addMarkerImages = function(){
+            model.addMarkerImages = function () {
                 var markerImages = angular.element(document.getElementsByClassName('marker-image'));
-                for(var i=0;i<markerImages.length;i++){
+                for (var i = 0; i < markerImages.length; i++) {
                     var markerImageElement = angular.element(markerImages[i]);
                     var value = markerImageElement.attr('data-value');
                     var mapping = JSON.parse(markerImageElement.attr('data-mapping'));
-                    markerImageElement.attr('src',model.getMarkerImageUrl(value,mapping));
+                    markerImageElement.attr('src', model.getMarkerImageUrl(value, mapping));
                 }
             };
-            model.selectPage = function(page){
+            model.selectPage = function (page) {
                 model.page = page;
                 var currentBlock = model.getCurrentBlock();
-                if(!model.previousBlock){
+                if (!model.previousBlock) {
                     model.previousBlock = currentBlock;
                     model.reload();
-                }else if(model.previousBlock===currentBlock){
+                } else if (model.previousBlock === currentBlock) {
                     model.reload();
-                }else{
+                } else {
                     model.updatePagerParams();
                     model.previousBlock = currentBlock;
                     model.reload(true);
                 }
             };
-            model.nextPage = function(isDisabled){
-                if(isDisabled)return;
-                model.selectPage(model.page+1);
+            model.nextPage = function (isDisabled) {
+                if (isDisabled) return;
+                model.selectPage(model.page + 1);
             };
-            model.previousPage = function(isDisabled){
-                if(isDisabled)return;
-                model.selectPage(model.page-1);
+            model.previousPage = function (isDisabled) {
+                if (isDisabled) return;
+                model.selectPage(model.page - 1);
             };
             model.reload(true);
         });
     }
 
-    function SmartTableModel($q,$http,$timeout){
-        return function(config){
+    function SmartTableModel($q, $http, $timeout) {
+        return function (config) {
             var model = this;
             model.loading = true;
             model.scope = null;
@@ -96,48 +96,48 @@
             model.$data = null;
             model.totalItems = 0;
             model.resultSet = [];
-            model.template = getTemplate(config.columns,config.isRowSelectable);
+            model.template = getTemplate(config.columns, config.isRowSelectable);
             console.log(model.template[0]);
             model.previousBlock = null;
             var cachedResponse = null;
 
-            function getPageCount(){
-                if(model.config.rowsPerPage && model.totalItems){
-                    return Math.ceil(model.totalItems/model.config.rowsPerPage);
-                }else{
+            function getPageCount() {
+                if (model.config.rowsPerPage && model.totalItems) {
+                    return Math.ceil(model.totalItems / model.config.rowsPerPage);
+                } else {
                     return 0;
                 }
             }
 
-            model.getCurrentBlock = function(){
-                return Math.ceil(model.page/model.config.pagesPerBlock);
+            model.getCurrentBlock = function () {
+                return Math.ceil(model.page / model.config.pagesPerBlock);
             };
 
-            var generatePagesArray = function(){
+            var generatePagesArray = function () {
                 var pages = [];
                 var pageCount = getPageCount();
-                if(pageCount >= 1){
+                if (pageCount >= 1) {
                     var startIndex, endIndex;
                     var currentBlock = model.getCurrentBlock();
                     var pagesPerBlock = model.config.pagesPerBlock;
-                    if(currentBlock === 1){
+                    if (currentBlock === 1) {
                         startIndex = 1;
                         endIndex = pagesPerBlock;
-                    }else{
-                        startIndex = ((currentBlock-1) * pagesPerBlock) + 1;
-                        endIndex = ((currentBlock-1) * pagesPerBlock) + pagesPerBlock;
+                    } else {
+                        startIndex = ((currentBlock - 1) * pagesPerBlock) + 1;
+                        endIndex = ((currentBlock - 1) * pagesPerBlock) + pagesPerBlock;
                     }
-                    if(endIndex > pageCount){
+                    if (endIndex > pageCount) {
                         endIndex = pageCount;
                     }
-                    for(var index=startIndex; index<=endIndex; index++){
+                    for (var index = startIndex; index <= endIndex; index++) {
                         pages.push(index);
                     }
                 }
                 return pages;
             };
 
-            function updatePaginationBar(){
+            function updatePaginationBar() {
                 model.pagesArray = generatePagesArray();
                 model.pageCount = getPageCount();
                 var from = (model.page - 1) * model.config.rowsPerPage + 1;
@@ -151,74 +151,74 @@
                     .replace('{TOTAL}', model.totalItems);
             }
 
-            function getDataFilteredByPage(){
+            function getDataFilteredByPage() {
                 var startIndex = (model.page - (model.config.pagesPerBlock * (model.getCurrentBlock() - 1))) - 1;
-                return model.resultSet.slice(startIndex * model.config.rowsPerPage, (startIndex+1) * model.config.rowsPerPage);
+                return model.resultSet.slice(startIndex * model.config.rowsPerPage, (startIndex + 1) * model.config.rowsPerPage);
             }
 
-            model.updatePagerParams = function(){
-                if(!model.page)return;
-                if(!model.previousBlock){
+            model.updatePagerParams = function () {
+                if (!model.page) return;
+                if (!model.previousBlock) {
                     model.pagerParams.startPage = 1;
                     model.pagerParams.endPage = model.config.pagesPerBlock;
-                }else{
+                } else {
                     var currentBlock = model.getCurrentBlock();
-                    if(model.previousBlock < currentBlock){
+                    if (model.previousBlock < currentBlock) {
                         model.pagerParams.startPage = model.page;
                         var value = model.page + model.config.pagesPerBlock - 1;
-                        if(!model.totalItems){
+                        if (!model.totalItems) {
                             model.pagerParams.endPage = value;
-                        }else{
+                        } else {
                             var pageCount = getPageCount();
-                            if(value <= pageCount){
+                            if (value <= pageCount) {
                                 model.pagerParams.endPage = value;
-                            }else{
+                            } else {
                                 model.pagerParams.endPage = pageCount;
                             }
                         }
-                    }else{
+                    } else {
                         model.pagerParams.startPage = model.page - model.config.pagesPerBlock + 1;
                         model.pagerParams.endPage = model.page;
                     }
                 }
             };
 
-            if(model.config.isPaginated){
+            if (model.config.isPaginated) {
                 model.pagerParams = {};
                 model.updatePagerParams();
             }
 
-            function getServerData(){
+            function getServerData() {
                 model.loading = true;
                 var requestParams = model.getRequestParams(model.scope);
-                var postData = angular.extend({},model.sortParams,requestParams);
-                if(model.config.isPaginated){
-                    postData = angular.extend(postData,model.pagerParams,{pageSize: model.config.rowsPerPage});
+                var postData = angular.extend({}, model.sortParams, requestParams);
+                if (model.config.isPaginated) {
+                    postData = angular.extend(postData, model.pagerParams, { pageSize: model.config.rowsPerPage });
                 }
                 var request = {
                     method: 'POST',
                     url: model.apiUrlBasepath + model.config.apiUrl,
                     data: postData,
-                    params:{},
-                    headers:{}
+                    params: {},
+                    headers: {}
                 };
-                if(model.dataFetchStartCallback && typeof model.dataFetchStartCallback === 'function'){
+                if (model.dataFetchStartCallback && typeof model.dataFetchStartCallback === 'function') {
                     request = model.dataFetchStartCallback(request);
-                    if(!request){
-                        return $q.reject('"'+model.dataFetchStartCallbackString+'" should return "request" object');
+                    if (!request) {
+                        return $q.reject('"' + model.dataFetchStartCallbackString + '" should return "request" object');
                     }
                 }
                 return $http(request).then(function (response) {
-                    if(model.dataFetchEndCallback && typeof model.dataFetchEndCallback === 'function'){
+                    if (model.dataFetchEndCallback && typeof model.dataFetchEndCallback === 'function') {
                         response = model.dataFetchEndCallback(response);
-                        if(!response){
-                            return $q.reject('"'+model.dataFetchEndCallbackString+'" should return "response" object');
+                        if (!response) {
+                            return $q.reject('"' + model.dataFetchEndCallbackString + '" should return "response" object');
                         }
                     }
-                    if(!response.data.hasOwnProperty('resultSet')){
+                    if (!response.data.hasOwnProperty('resultSet')) {
                         return $q.reject('"resultSet" node not found in response.');
                     }
-                    if(!response.data.hasOwnProperty('totalItems')){
+                    if (!response.data.hasOwnProperty('totalItems')) {
                         return $q.reject('"totalItems" node not found in response.');
                     }
                     cachedResponse = response.data;
@@ -228,61 +228,63 @@
                 });
             }
 
-            function getCachedData(){
-                if(cachedResponse){
+            function getCachedData() {
+                if (cachedResponse) {
                     return $q.resolve(cachedResponse);
-                }else{
+                } else {
                     return getServerData();
                 }
             }
 
-            model.reload = function(fetchFromServer){
+            model.reload = function (fetchFromServer) {
                 var promise;
-                if(fetchFromServer){
+                if (fetchFromServer) {
                     promise = getServerData();
-                }else{
+                } else {
                     promise = getCachedData();
                 }
-                promise.then(function(data){
+                promise.then(function (data) {
                     model.totalItems = data.totalItems;
                     model.resultSet = data.resultSet;
-                    $timeout(function(){
-                        if(model.config.isPaginated){
+                    $timeout(function () {
+                        if (model.config.isPaginated) {
                             model.$data = getDataFilteredByPage();
-                        }else{
+                        } else {
                             model.$data = model.resultSet;
                         }
                         // $timeout(model.addMarkerImages);
-                        if(model.config.isPaginated){
+                        if (model.config.isPaginated) {
                             updatePaginationBar();
                         }
-                        if(model.config.isRowSelectable){
+                        if (model.config.isRowSelectable) {
                             resetSelectedRows();
                             model.updateSelectedRows();
                         }
+                        model.allRowsSelected = false;
                         model.loading = false;
                     });
-                },function(error){
+                }, function (error) {
+                    model.allRowsSelected = false;
                     console.log('SMART-TABLE-ERROR');
                     console.log(error);
                     model.loading = false;
                 });
             };
-            model.resetSorting = function(){
+            model.resetSorting = function () {
                 model.sortParams = angular.copy(model.defaultSortParams);
             };
-            model.resetAndReload = function(retainSort){
+            model.resetAndReload = function (retainSort) {
                 model.page = 1;
                 model.previousBlock = null;
                 model.totalItems = 0;
                 cachedResponse = null;
                 model.updatePagerParams();
-                if(!retainSort){
+                if (!retainSort) {
                     model.resetSorting();
                 }
                 model.reload(true);
             };
-            model.sortBy = sortBy.bind(null,model);
+            model.sortBy = sortBy.bind(null, model);
             // var counter = 0;
             model.getMarkerImageUrl = function (value, mappings) {
                 // counter++;
@@ -297,32 +299,32 @@
                 }
             };
 
-            function resetSelectedRows(){
+            function resetSelectedRows() {
                 if (!model.$data) return;
                 model.$data.forEach(function (datum) {
                     datum._isSelected = false;
-                });                
+                });
             }
 
-            function selectAllRows(){
-                if(!model.$data)return;
-                model.$data.forEach(function(datum){
+            function selectAllRows() {
+                if (!model.$data) return;
+                model.$data.forEach(function (datum) {
                     datum._isSelected = true;
                 });
             }
 
-            model.updateSelectedRows = function(){
-                if(!model.$data)return;
+            model.updateSelectedRows = function () {
+                if (!model.$data) return;
                 var selectedRows = model.$data.filter(function (datum) { return datum._isSelected; });
-                if(selectedRows.length === model.$data.length){
+                if (selectedRows.length === model.$data.length) {
                     angular.element(model.selectAllCheckBox).prop('indeterminate', false);
                     if (model.$data.length) {
                         model.allRowsSelected = true;
                     }
-                }else{
-                    if(selectedRows.length !== 0){
+                } else {
+                    if (selectedRows.length !== 0) {
                         angular.element(model.selectAllCheckBox).prop('indeterminate', true);
-                    }else{
+                    } else {
                         angular.element(model.selectAllCheckBox).prop('indeterminate', false);
                     }
                     model.allRowsSelected = false;
@@ -336,11 +338,19 @@
                 }
             };
 
-            model.onSelectAllClick = function(event){
-                if(event.target.checked){
+            model.onSelectAllClick = function (event) {
+                var selectedRows = model.$data.filter(function (datum) { return datum._isSelected; });
+                if (selectedRows.length && !model.allRowsSelected) {
+                    model.allRowsSelected = true;
                     selectAllRows();
-                }else{
-                    resetSelectedRows();
+                } else {
+                    if (event.target.checked) {
+                        model.allRowsSelected = true;
+                        selectAllRows();
+                    } else {
+                        model.allRowsSelected = false;
+                        resetSelectedRows();
+                    }
                 }
                 model.updateSelectedRows();
             };
@@ -348,8 +358,8 @@
         };
     }
 
-    function getTemplate(columns,isRowSelectable){
-        var rows = angular.element('<tr class="data-rows" ng-repeat="datum in smartTableModel.$data" ng-show="!smartTableModel.loading && smartTableModel.$data.length"></tr>');
+    function getTemplate(columns, isRowSelectable) {
+        var rows = angular.element('<tr class="data-rows" quick-ng-repeat="datum in smartTableModel.$data" quick-repeat-list="dataList" ng-show="!smartTableModel.loading && smartTableModel.$data.length"></tr>');
         if (isRowSelectable) {
             var rowSelectorCell = angular.element('<td class="row-select"></td>')
             rowSelectorCell.append('<input type="checkbox" ng-model="datum._isSelected" ng-click="smartTableModel.updateSelectedRows()" />');
@@ -434,7 +444,7 @@
         return rows;
     }
 
-    function sortBy(model,column){
+    function sortBy(model, column) {
         model.sortParams.sortColumn = column;
         if (model.sortParams.sortColumn === model.currentSortColumn) {
             model.sortParams.sortOrder = model.sortParams.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -445,17 +455,17 @@
         model.resetAndReload(true);
     }
 
-    function smartTableTextTruncate(){
-        return function(text,length){
-            if(text && length && text.length > length){
-                return text.substr(0,length) + '...';
-            }else{
+    function smartTableTextTruncate() {
+        return function (text, length) {
+            if (text && length && text.length > length) {
+                return text.substr(0, length) + '...';
+            } else {
                 return text;
             }
         };
     }
 
-    function smartTableTooltipWrapper(){
+    function smartTableTooltipWrapper() {
         var getTextWidth = function (element) {
             var text = element.html();
             element.html('<span>' + text + '</span>');

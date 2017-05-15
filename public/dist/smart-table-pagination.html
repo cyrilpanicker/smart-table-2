@@ -6,7 +6,7 @@
                 <span>« PREV</span>
             </a>
         </li>
-        <li ng-class="{'selected': model.page == page}" ng-repeat="page in model.pagesArray">
+        <li ng-class="{'selected': model.page == page}" quick-ng-repeat="page in model.pagesArray" quick-repeat-list="pagesList">
             <a href="" ng-click="model.selectPage(page)">
                 <span ng-bind="page"></span>
             </a>

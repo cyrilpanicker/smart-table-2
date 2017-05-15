@@ -9,7 +9,7 @@
                 <th class="row-select" ng-show="smartTableModel.config.isRowSelectable">
                     <input class="select-all-checkBox" type="checkbox" ng-checked="smartTableModel.allRowsSelected" ng-click="smartTableModel.onSelectAllClick($event)" />
                 </th>
-                <th ng-repeat="column in smartTableModel.config.columns"
+                <th quick-ng-repeat="column in smartTableModel.config.columns" quick-repeat-list="columnsList"
                     ng-click="column.isSortable && smartTableModel.sortBy(column.field)"
                     ng-class="{
                         'sortable':column.isSortable,
