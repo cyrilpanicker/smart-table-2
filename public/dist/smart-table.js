@@ -51,6 +51,7 @@
             model.getRequestParams = $parse(attributes.requestParams);
             model.config.noRecordsMessage = model.config.noRecordsMessage || 'No records to show.';
             model.config.loadingMessage = model.config.loadingMessage || 'Loading data';
+            model.getDecodedText = getDecodedText;
             model.addMarkerImages = function () {
                 var markerImages = angular.element(document.getElementsByClassName('marker-image'));
                 for (var i = 0; i < markerImages.length; i++) {
@@ -97,7 +98,7 @@
             model.totalItems = 0;
             model.resultSet = [];
             model.template = getTemplate(config.columns, config.isRowSelectable);
-            console.log(model.template[0]);
+            //console.log(model.template[0]);
             model.previousBlock = null;
             var cachedResponse = null;
 
@@ -398,8 +399,12 @@
                     fieldContainer.append(anchor);
                 } else {
                     var span = angular.element('<span></span>');
-                    span.attr('ng-bind-html', "datum['" + field + "'] | smartTableTextTruncate:" + columns[i].maxLength);
-                    span.attr('title', "{{datum['" + field + "'] && " + columns[i].maxLength + " && datum['" + field + "'].length>" + columns[i].maxLength + " ? datum['" + field + "'] : ''}}");
+                    span.attr('ng-bind', "datum['" + field + "'] | smartTableTextTruncate:" + columns[i].maxLength + ':' + columns[i].isEncoded);
+                    if (!columns[i].isEncoded) {
+                        span.attr('title', "{{datum['" + field + "'] && " + columns[i].maxLength + " && datum['" + field + "'].length>" + columns[i].maxLength + " ? datum['" + field + "'] : ''}}");
+                    } else {
+                        span.attr('title', "{{datum['" + field + "'] && " + columns[i].maxLength + " && smartTableModel.getDecodedText(datum['" + field + "']).length>" + columns[i].maxLength + " ? smartTableModel.getDecodedText(datum['" + field + "']) : ''}}");
+                    }
                     fieldContainer.append(span);
                 }
                 cell.append(fieldContainer);
@@ -416,7 +421,7 @@
                     var infoColumnSpan = angular.element('<span></span>');
                     infoColumnSpan.append('<span class="title">' + infoColumns[j].title + ' : </span>');
                     var infoColumnValue = angular.element('<span></span>');
-                    infoColumnValue.attr('ng-bind', "datum['" + infoColumnField + "']");
+                    infoColumnValue.attr('ng-bind-html', "datum['" + infoColumnField + "']");
                     infoColumnSpan.append(infoColumnValue);
                     infoColumnSpan.append('<br/>');
                     tooltipContent.append(infoColumnSpan);
@@ -455,8 +460,32 @@
         model.resetAndReload(true);
     }
 
+    function getDecodedText(content) {
+        if (!!content) {
+            try {
+                if (document.getElementById('ghostElement') == null) {
+                    var ghostElement = document.createElement('div');
+                    ghostElement.id = "ghostElement";
+                    document.body.appendChild(ghostElement);
+                    document.getElementById('ghostElement').style.display = 'none';
+                }
+
+                // Added second replace condition for avoiding HTML '<>' tag rendering in the .html() function.
+                content = content.replace(/</g, '&lt;').replace(/\n/g, '<br/>');
+                $('#ghostElement').html(content);
+                content = document.getElementById('ghostElement').innerText;
+            } catch (e) {
+                content = content;
+            }
+        }
+        return content;
+    }
+
     function smartTableTextTruncate() {
-        return function (text, length) {
+        return function (text, length, decode) {
+            if (decode) {
+                text = getDecodedText(text);
+            }
             if (text && length && text.length > length) {
                 return text.substr(0, length) + '...';
             } else {
